@@ -67,7 +67,7 @@ stages:
   dependsOn: DestroyPlan
   jobs:
   - job: Approval
-    pool: linux-hosted-agent
+    pool: server
     steps:
     - task: ManualValidation@0
       inputs:
