@@ -98,10 +98,12 @@ stages:
   displayName: "Terraform Destroy Apply"
   dependsOn: Approval
   condition: succeeded()
+
   jobs:
   - job: Apply
     pool:
       name: linux-hosted-agent
+
     steps:
     - checkout: self
 
@@ -111,15 +113,16 @@ stages:
         targetType: inline
         script: |
           cd environments/${{ parameters.environment }}
-          terraform init -reconfigure -input=false
-          terraform apply -input=false tfdestroy.plan
+          terraform init -reconfigure
+          terraform apply -auto-approve tfdestroy.plan
       env:
-        TF_VAR_location: $(TF_VAR_location)
-        TF_VAR_rg_name: $(TF_VAR_rg_name)
-        TF_VAR_admin_username: $(TF_VAR_admin_username)
-        TF_VAR_admin_password: $(TF_VAR_admin_password)
         ARM_CLIENT_ID: $(ARM_CLIENT_ID)
         ARM_CLIENT_SECRET: $(ARM_CLIENT_SECRET)
         ARM_TENANT_ID: $(ARM_TENANT_ID)
         ARM_SUBSCRIPTION_ID: $(ARM_SUBSCRIPTION_ID)
+        TF_VAR_location: $(TF_VAR_location)
+        TF_VAR_rg_name: $(TF_VAR_rg_name)
+        TF_VAR_admin_username: $(TF_VAR_admin_username)
+        TF_VAR_admin_password: $(TF_VAR_admin_password)
+
 
