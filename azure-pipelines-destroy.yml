@@ -113,8 +113,9 @@ stages:
         targetType: inline
         script: |
           cd environments/${{ parameters.environment }}
-          terraform init -reconfigure
-          terraform apply -auto-approve tfdestroy.plan
+
+          terraform init -reconfigure -input=false
+          terraform apply -auto-approve -input=false tfdestroy.plan
       env:
         ARM_CLIENT_ID: $(ARM_CLIENT_ID)
         ARM_CLIENT_SECRET: $(ARM_CLIENT_SECRET)
@@ -124,5 +125,6 @@ stages:
         TF_VAR_rg_name: $(TF_VAR_rg_name)
         TF_VAR_admin_username: $(TF_VAR_admin_username)
         TF_VAR_admin_password: $(TF_VAR_admin_password)
+
 
 
