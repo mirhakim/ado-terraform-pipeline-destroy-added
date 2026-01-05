@@ -32,7 +32,7 @@ stages:
   jobs:
   - job: Plan
     pool:
-      name: Default
+      name: linux-hosted-agent
     steps:
     - checkout: self
 
@@ -67,7 +67,7 @@ stages:
   dependsOn: DestroyPlan
   jobs:
   - job: Approval
-    pool: server
+    pool: linux-hosted-agent
     steps:
     - task: ManualValidation@0
       inputs:
@@ -91,7 +91,7 @@ stages:
   jobs:
   - job: Apply
     pool:
-      name: Default
+      name: linux-hosted-agent
     steps:
     - checkout: self
 
