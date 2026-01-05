@@ -17,6 +17,7 @@ stages:
 
     steps:
     - checkout: self
+      clean: false
 
     - bash: |
         terraform version
@@ -45,8 +46,7 @@ stages:
           --framework terraform || true
       displayName: 'Terraform Security Scan (Checkov)'
 
-
-# =========================================================
+ # =========================================================
 # STAGE 2: COST & IMPACT ASSESSMENT (INFRACOST)
 # =========================================================
 - stage: Cost
@@ -60,12 +60,9 @@ stages:
     pool:
       name: linux-hosted-agent
 
-    # 🔐 EXPLICIT SECRET VARIABLE INJECTION (CRITICAL)
-    env:
-      INFRACOST_API_KEY: $(INFRACOST_API_KEY)
-
     steps:
     - checkout: self
+      clean: false
 
     - bash: |
         docker --version
@@ -73,24 +70,36 @@ stages:
 
     - bash: |
         if [ -z "$INFRACOST_API_KEY" ]; then
-          echo "❌ INFRACOST_API_KEY not available"
+          echo "❌ INFRACOST_API_KEY not set"
           exit 1
         fi
         echo "✅ INFRACOST_API_KEY detected"
       displayName: 'Verify Infracost API Key'
+      env:
+        INFRACOST_API_KEY: $(INFRACOST_API_KEY)
 
     - bash: |
-        cd environments/dev
-        terraform init -backend=false
+        docker pull infracost/infracost
+      displayName: 'Pull Infracost Image'
 
+    - bash: |
         docker run --rm \
           -e INFRACOST_API_KEY=$INFRACOST_API_KEY \
           -v $(pwd):/workspace \
           infracost/infracost breakdown \
-          --path /workspace \
+          --path /workspace/environments/dev \
+          --terraform-var location=$TF_VAR_location \
+          --terraform-var rg_name=$TF_VAR_rg_name \
+          --terraform-var vm_size=$TF_VAR_vm_size \
+          --terraform-var admin_password=$TF_VAR_admin_password \
           --format table
       displayName: 'Run Infracost Cost Breakdown'
-
+      env:
+        INFRACOST_API_KEY: $(INFRACOST_API_KEY)
+        TF_VAR_location: $(TF_VAR_location)
+        TF_VAR_rg_name: $(TF_VAR_rg_name)
+        TF_VAR_vm_size: $(TF_VAR_vm_size)
+        TF_VAR_admin_password: $(TF_VAR_admin_password)
 
 # =========================================================
 # STAGE 3: TERRAFORM PLAN (DEV)
@@ -108,6 +117,7 @@ stages:
 
     steps:
     - checkout: self
+      clean: false   # <<< FIX FOR PERMISSION ISSUE
 
     - bash: |
         cd environments/dev
@@ -118,14 +128,48 @@ stages:
         cd environments/dev
         terraform plan
       displayName: 'Terraform Plan'
+      env:
+        TF_VAR_location: $(TF_VAR_location)
+        TF_VAR_rg_name: $(TF_VAR_rg_name)
+        TF_VAR_admin_username: $(TF_VAR_admin_username)
+        TF_VAR_admin_password: $(TF_VAR_admin_password)
+        ARM_CLIENT_ID: $(ARM_CLIENT_ID)
+        ARM_CLIENT_SECRET: $(ARM_CLIENT_SECRET)
+        ARM_SUBSCRIPTION_ID: $(ARM_SUBSCRIPTION_ID)
+        ARM_TENANT_ID: $(ARM_TENANT_ID)
 
 
 # =========================================================
-# STAGE 4: TERRAFORM APPLY (DEV)
+# STAGE 4: MANUAL APPROVAL (GOVERNANCE GATE)
+# =========================================================
+- stage: Approval
+  displayName: 'Manual Approval Before Apply'
+  dependsOn: Plan
+  condition: succeeded()
+
+  jobs:
+  - job: ManualApproval
+    displayName: 'Approve Terraform Apply'
+    pool: server   # IMPORTANT: must be server
+
+    steps:
+    - task: ManualValidation@0
+      timeoutInMinutes: 1440   # 24 hours
+      inputs:
+        instructions: |
+          Please review:
+          - Terraform Plan output
+          - Infracost cost estimation
+
+          Approve to proceed with Terraform Apply.
+        onTimeout: reject
+
+# =========================================================
+# STAGE 5: TERRAFORM APPLY (DEV)
 # =========================================================
 - stage: Apply
   displayName: 'Terraform Apply (Dev)'
-  dependsOn: Plan
+  dependsOn: Approval
   condition: succeeded()
 
   jobs:
@@ -136,6 +180,7 @@ stages:
 
     steps:
     - checkout: self
+      clean: false
 
     - bash: |
         cd environments/dev
@@ -146,4 +191,12 @@ stages:
         cd environments/dev
         terraform apply -auto-approve
       displayName: 'Terraform Apply'
-
+      env:
+        TF_VAR_location: $(TF_VAR_location)
+        TF_VAR_rg_name: $(TF_VAR_rg_name)
+        TF_VAR_admin_username: $(TF_VAR_admin_username)
+        TF_VAR_admin_password: $(TF_VAR_admin_password)
+        ARM_CLIENT_ID: $(ARM_CLIENT_ID)
+        ARM_CLIENT_SECRET: $(ARM_CLIENT_SECRET)
+        ARM_SUBSCRIPTION_ID: $(ARM_SUBSCRIPTION_ID)
+        ARM_TENANT_ID: $(ARM_TENANT_ID)
