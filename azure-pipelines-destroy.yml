@@ -29,10 +29,12 @@ stages:
 # =============================
 - stage: DestroyPlan
   displayName: "Terraform Destroy Plan"
+
   jobs:
   - job: Plan
     pool:
       name: linux-hosted-agent
+
     steps:
     - checkout: self
 
@@ -52,22 +54,19 @@ stages:
           cd environments/${{ parameters.environment }}
 
           if [ "${{ parameters.destroyScope }}" = "all" ]; then
-            terraform plan -destroy -input=false -out=tfdestroy.plan
+            terraform plan -destroy -out=tfdestroy.plan -input=false
           else
             terraform plan -destroy \
               -target=${{ parameters.destroyScope }} \
-              -input=false \
-              -out=tfdestroy.plan
+              -out=tfdestroy.plan -input=false
           fi
-      env:
-        TF_VAR_location: $(TF_VAR_location)
-        TF_VAR_rg_name: $(TF_VAR_rg_name)
-        TF_VAR_admin_username: $(TF_VAR_admin_username)
-        TF_VAR_admin_password: $(TF_VAR_admin_password)
-        ARM_CLIENT_ID: $(ARM_CLIENT_ID)
-        ARM_CLIENT_SECRET: $(ARM_CLIENT_SECRET)
-        ARM_TENANT_ID: $(ARM_TENANT_ID)
-        ARM_SUBSCRIPTION_ID: $(ARM_SUBSCRIPTION_ID)
+
+    - task: PublishPipelineArtifact@1
+      displayName: "Publish Destroy Plan"
+      inputs:
+        targetPath: environments/${{ parameters.environment }}/tfdestroy.plan
+        artifact: tfdestroy-plan
+
 
 # =============================
 # STAGE 2: Manual Approval
@@ -107,6 +106,12 @@ stages:
     steps:
     - checkout: self
 
+    - task: DownloadPipelineArtifact@2
+      displayName: "Download Destroy Plan"
+      inputs:
+        artifact: tfdestroy-plan
+        path: environments/${{ parameters.environment }}
+
     - task: Bash@3
       displayName: "Terraform Destroy Apply"
       inputs:
@@ -121,10 +126,12 @@ stages:
         ARM_CLIENT_SECRET: $(ARM_CLIENT_SECRET)
         ARM_TENANT_ID: $(ARM_TENANT_ID)
         ARM_SUBSCRIPTION_ID: $(ARM_SUBSCRIPTION_ID)
+
         TF_VAR_location: $(TF_VAR_location)
         TF_VAR_rg_name: $(TF_VAR_rg_name)
         TF_VAR_admin_username: $(TF_VAR_admin_username)
         TF_VAR_admin_password: $(TF_VAR_admin_password)
+
 
 
 
