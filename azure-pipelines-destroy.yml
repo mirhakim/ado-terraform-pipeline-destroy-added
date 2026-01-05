@@ -42,7 +42,7 @@ stages:
         targetType: inline
         script: |
           cd environments/${{ parameters.environment }}
-          terraform init -reconfigure
+          terraform init -reconfigure -input=false
 
     - task: Bash@3
       displayName: "Terraform Destroy Plan"
@@ -52,12 +52,18 @@ stages:
           cd environments/${{ parameters.environment }}
 
           if [ "${{ parameters.destroyScope }}" = "all" ]; then
-            terraform plan -destroy -out=tfdestroy.plan
+            terraform plan -destroy -input=false -out=tfdestroy.plan
           else
             terraform plan -destroy \
               -target=${{ parameters.destroyScope }} \
+              -input=false \
               -out=tfdestroy.plan
           fi
+      env:
+        TF_VAR_location: $(TF_VAR_location)
+        TF_VAR_rg_name: $(TF_VAR_rg_name)
+        TF_VAR_admin_username: $(TF_VAR_admin_username)
+        TF_VAR_admin_password: $(TF_VAR_admin_password)
 
 # =============================
 # STAGE 2: Manual Approval
@@ -101,5 +107,11 @@ stages:
         targetType: inline
         script: |
           cd environments/${{ parameters.environment }}
-          terraform init -reconfigure
-          terraform apply tfdestroy.plan
+          terraform init -reconfigure -input=false
+          terraform apply -input=false tfdestroy.plan
+      env:
+        TF_VAR_location: $(TF_VAR_location)
+        TF_VAR_rg_name: $(TF_VAR_rg_name)
+        TF_VAR_admin_username: $(TF_VAR_admin_username)
+        TF_VAR_admin_password: $(TF_VAR_admin_password)
+
