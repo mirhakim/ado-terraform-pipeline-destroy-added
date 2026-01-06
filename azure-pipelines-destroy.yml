@@ -45,6 +45,11 @@ stages:
         script: |
           cd environments/${{ parameters.environment }}
           terraform init -reconfigure -input=false
+      env:
+        ARM_CLIENT_ID: $(ARM_CLIENT_ID)
+        ARM_CLIENT_SECRET: $(ARM_CLIENT_SECRET)
+        ARM_TENANT_ID: $(ARM_TENANT_ID)
+        ARM_SUBSCRIPTION_ID: $(ARM_SUBSCRIPTION_ID)
 
     - task: Bash@3
       displayName: "Terraform Destroy Plan"
@@ -60,13 +65,17 @@ stages:
               -target=${{ parameters.destroyScope }} \
               -out=tfdestroy.plan -input=false
           fi
+      env:
+        TF_VAR_location: $(TF_VAR_location)
+        TF_VAR_rg_name: $(TF_VAR_rg_name)
+        TF_VAR_admin_username: $(TF_VAR_admin_username)
+        TF_VAR_admin_password: $(TF_VAR_admin_password)
 
     - task: PublishPipelineArtifact@1
       displayName: "Publish Destroy Plan"
       inputs:
         targetPath: environments/${{ parameters.environment }}/tfdestroy.plan
         artifact: tfdestroy-plan
-
 
 # =============================
 # STAGE 2: Manual Approval
@@ -126,7 +135,6 @@ stages:
         ARM_CLIENT_SECRET: $(ARM_CLIENT_SECRET)
         ARM_TENANT_ID: $(ARM_TENANT_ID)
         ARM_SUBSCRIPTION_ID: $(ARM_SUBSCRIPTION_ID)
-
         TF_VAR_location: $(TF_VAR_location)
         TF_VAR_rg_name: $(TF_VAR_rg_name)
         TF_VAR_admin_username: $(TF_VAR_admin_username)
